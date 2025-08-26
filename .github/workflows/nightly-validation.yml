@@ -82,19 +82,16 @@ jobs:
             const { data: issues } = await github.rest.issues.listForRepo({ owner: repo.owner, repo: repo.repo, state: 'open' });
             const candidates = issues.filter(i => i.title && (i.title === titleBase || i.title.startsWith(titleBase)));
 
-            // If any recent candidate exists (created within 24h) or has 'in-progress' label, skip rotation
-            const HOURS = 24;
-            const now = Date.now();
-            const recent = candidates.some(i => {
-              const created = new Date(i.created_at).getTime();
-              const ageHours = (now - created) / (1000 * 60 * 60);
-              const hasInProgress = (i.labels || []).some(l => (l.name || l).toString().toLowerCase() === 'in-progress');
-              return hasInProgress || ageHours < HOURS;
-            });
-            if (recent) { console.log('recent task issue exists, skipping rotation'); return; }
+            // Only skip rotation if an existing candidate is marked in-progress.
+            const hasInProgress = candidates.some(i => (i.labels || []).some(l => (l.name || l).toString().toLowerCase() === 'in-progress'));
+            if (hasInProgress) { console.log('found in-progress task issue, skipping rotation'); return; }
 
-            // Otherwise create a new issue (with titleBase) and rotate the file
-            await github.rest.issues.create({ owner: repo.owner, repo: repo.repo, title: titleBase, body: task, labels: ['daily-task'] });
+            // Append a short timestamp to title to guarantee uniqueness and preserve titleBase for matching
+            const ts = new Date().toISOString().replace(/[:.]/g, '-');
+            const title = `${titleBase} (${ts})`;
+
+            // Create the issue and rotate the file
+            await github.rest.issues.create({ owner: repo.owner, repo: repo.repo, title, body: task, labels: ['daily-task'] });
 
             // Rotate: remove the first task and update file via API with retry
             const maxAttempts = 3;
