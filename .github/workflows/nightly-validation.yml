@@ -76,11 +76,25 @@ jobs:
               .filter(l => l && !l.startsWith('#'));
             if (!lines.length) { console.log('no tasks present'); return; }
             const task = lines[0];
-            const title = `Nightly task: ${task.slice(0,100)}`;
-            // avoid duplicate issues
+            const titleBase = `Nightly task: ${task.slice(0,100)}`;
+
+            // Find existing open issues that match the title base (exact or startsWith)
             const { data: issues } = await github.rest.issues.listForRepo({ owner: repo.owner, repo: repo.repo, state: 'open' });
-            if (issues.some(i => i.title === title)) { console.log('task issue already exists, skipping rotation'); return; }
-            await github.rest.issues.create({ owner: repo.owner, repo: repo.repo, title, body: task, labels: ['daily-task'] });
+            const candidates = issues.filter(i => i.title && (i.title === titleBase || i.title.startsWith(titleBase)));
+
+            // If any recent candidate exists (created within 24h) or has 'in-progress' label, skip rotation
+            const HOURS = 24;
+            const now = Date.now();
+            const recent = candidates.some(i => {
+              const created = new Date(i.created_at).getTime();
+              const ageHours = (now - created) / (1000 * 60 * 60);
+              const hasInProgress = (i.labels || []).some(l => (l.name || l).toString().toLowerCase() === 'in-progress');
+              return hasInProgress || ageHours < HOURS;
+            });
+            if (recent) { console.log('recent task issue exists, skipping rotation'); return; }
+
+            // Otherwise create a new issue (with titleBase) and rotate the file
+            await github.rest.issues.create({ owner: repo.owner, repo: repo.repo, title: titleBase, body: task, labels: ['daily-task'] });
 
             // Rotate: remove the first task and update file via API with retry
             const maxAttempts = 3;
