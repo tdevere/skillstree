@@ -1,5 +1,3 @@
-# Next Tasks (rotating)
-
 1. Add "Run validation" endpoint and UI button for single node/rank — small
 2. Add `--simulate` mode to `run_validation.py` and sample outputs — small
 3. Implement per-user config file (`~/.skillstree/config.json`) and wire to template expansion — small
