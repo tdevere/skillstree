@@ -1,0 +1,23 @@
+name: CI - Schema & Tests
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Validate skill_tree.json
+        run: python validate_skill_tree.py skill_tree.json
+      - name: Run unit tests
+        run: |
+          if [ -f pytest.ini ] || [ -d tests ]; then
+            pytest -q
+          else
+            echo "No tests detected, skipping pytest";
+          fi

@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Skill Tree Schema",
+  "type": "object",
+  "required": ["version", "schema_version", "nodes"],
+  "properties": {
+    "version": { "type": "string" },
+    "schema_version": { "type": "string" },
+    "generated_from": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "description": { "type": "string" },
+    "evidence_schema": {
+      "type": "object",
+      "properties": {
+        "types": { "type": "object" },
+        "preferred_structure": { "type": "object" }
+      }
+    },
+    "nodes": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Z]{2}\\.([A-Z]{2,4}|[A-Z]{3})$": {
+          "type": "object",
+          "required": ["title","path","depends_on","ranks"],
+          "properties": {
+            "title": { "type": "string" },
+            "mermaid_label": { "type": "string" },
+            "path": { "type": "string" },
+            "validation_context": {
+              "type": "object",
+              "description": "Optional provider metadata and template values used to expand validation commands",
+              "properties": {
+                "provider": { "type": "string" },
+                "pipeline_name": { "type": "string" },
+                "github_repo": { "type": "string" },
+                "az_devops_org": { "type": "string" },
+                "az_devops_project": { "type": "string" }
+              }
+            },
+            "depends_on": { "type": "array", "items": { "type": "string" } },
+            "ranks": {
+              "type": "object",
+              "minProperties": 3,
+              "maxProperties": 3,
+              "patternProperties": {
+                "^[1-3]$": {
+                  "type": "object",
+                  "required": ["level_name","capabilities","validation_tasks","evidence_examples"],
+                  "properties": {
+                    "level_name": { "type": "string" },
+                    "capabilities": { "type": "string" },
+                    "validation_tasks": { "type": "array", "items": { "type": "string" } },
+                    "validation_commands": { "type": "array", "items": { "type": "string" } },
+                    "expected_results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["type"],
+                        "properties": {
+                          "type": { "type": "string", "enum": ["exit_code","output_non_empty","file_exists","contains","templates_present","manual_check","regex","json_match","numeric_compare"] },
+                          "value": {},
+                          "path": { "type": "string" },
+                          "field": { "type": "string" },
+                          "message": { "type": "string" },
+                          "pattern": { "type": "string" },
+                          "json_path": { "type": "string" },
+                          "operator": { "type": "string", "enum": ["gt","lt","ge","le","eq","ne"] },
+                          "threshold": {}
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "evidence_examples": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

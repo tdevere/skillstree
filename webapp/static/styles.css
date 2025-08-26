@@ -1,0 +1,25 @@
+:root{
+	--bg:#0f1724;
+	--card:#0b1220;
+	--muted:#94a3b8;
+	--accent:#06b6d4;
+	--white:#e6eef7;
+}
+body{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:linear-gradient(180deg,#071024,#071623);color:var(--white);margin:0;padding:24px}
+.container{max-width:1100px;margin:0 auto}
+.app-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.app-header h1{margin:0;font-size:20px}
+.lead{color:var(--muted);margin:4px 0 0}
+.actions{display:flex;align-items:center;gap:12px}
+.btn{background:var(--accent);color:#042b2f;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+.status{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.card{background:rgba(255,255,255,0.03);padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+.card h2{margin:0 0 6px 0;font-size:16px}
+.card p{margin:0 0 10px;color:var(--muted)}
+.ranks{display:flex;gap:8px;flex-wrap:wrap}
+.rank{background:#071a1f;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);min-width:110px}
+.rank label{display:flex;flex-direction:column;font-size:13px}
+.rank .cap{color:var(--muted);font-size:12px;margin-top:6px}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#062a2f;color:var(--accent);font-weight:700}
+.toast{position:fixed;right:18px;bottom:18px;background:#062a2f;padding:10px 14px;border-radius:8px;color:var(--white);display:none}

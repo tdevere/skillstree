@@ -1,0 +1,356 @@
+{
+  "version": "1.0",
+  "schema_version": "2025-08-26.v1",
+  "generated_from": "devops_skilltree_prompt.md",
+  "generated_at": "2025-08-26T00:00:00Z",
+  "description": "Seed skill tree for DevOps Engineer paths. Each node includes rank rubrics (1-3), concise validation tasks and example evidence.",
+  "evidence_schema": {
+    "types": {
+      "pipeline_run": { "format": "url", "description": "Link to pipeline/build run" },
+      "repo": { "format": "url", "description": "Repository URL" },
+      "doc": { "format": "url|file", "description": "Design, policy, or architecture document" },
+      "screenshot": { "format": "file|url", "description": "Screenshot image or hosted link" },
+      "artifact": { "format": "url", "description": "Artifact or package feed link" },
+      "metric": { "format": "number|url", "description": "Numeric metric or dashboard link" }
+    },
+    "preferred_structure": { "type": "object", "properties": { "type": { "type": "string" }, "format": { "type": "string" }, "value": { "type": "string" } }, "required": ["type","value"] }
+  },
+  "nodes": {
+    "CI.VCS": {
+      "title": "Version Control Mastery",
+      "path": "CI/CD",
+      "validation_context": {
+        "provider": "github",
+        "github_repo": "${GITHUB_REPOSITORY}"
+      },
+      "depends_on": [],
+      "ranks": {
+        "1": {
+          "level_name": "Beginner",
+          "capabilities": "Initialize repos, commit, basic branching and pull requests with guidance.",
+          "validation_tasks": ["Create a repo, perform commits and open a PR"],
+          "validation_commands": [
+            "git rev-parse --is-inside-work-tree",
+            "git log -1 --pretty=format:%H"
+          ],
+          "expected_results": [
+            { "type": "exit_code", "value": 0 },
+            { "type": "output_non_empty", "field": "commit_hash" }
+          ],
+          "evidence_examples": ["repo URL", "PR link", "screenshot of commit history"]
+        },
+        "2": {
+          "level_name": "Advanced",
+          "capabilities": "Author and enforce branching strategies, reviews, and CI triggers independently.",
+          "validation_tasks": ["Implement branch protection and an automated PR build"],
+          "validation_commands": [
+            "git ls-remote --heads origin",
+            "git config --get remote.origin.url || true",
+            "gh api repos/${GITHUB_REPOSITORY:-$(basename -s .git $(git config --get remote.origin.url))}/branches/main/protection --jq . || true",
+            "az repos policy list --organization $AZ_DEVOPS_ORG_URL --project $AZ_DEVOPS_PROJECT || true"
+          ],
+          "expected_results": [
+            { "type": "exit_code", "value": 0 },
+            { "type": "manual_check", "message": "branch_protection:enabled_or_configured (requires provider API)" }
+          ],
+          "evidence_examples": ["branch policy screenshot", "pipeline URL for PR validation"]
+        },
+        "3": {
+          "level_name": "Expert",
+          "capabilities": "Design GitOps workflows, manage enterprise repos, scale cross-team governance.",
+          "validation_tasks": ["Design a GitOps repo layout and justify governance choices"],
+          "validation_commands": [
+            "git ls-files | grep -E 'kustomization.yaml|kustomization.yml|flux|argocd' || true",
+            "test -f kustomization.yaml || test -f kustomization.yml || true"
+          ],
+          "expected_results": [
+            { "type": "contains", "value": "declarative_manifests" },
+            { "type": "manual_check", "message": "governance_doc:present" }
+          ],
+          "evidence_examples": ["architecture doc", "policy configuration samples"]
+        }
+      }
+    },
+    "CI.PIPE": {
+      "title": "Pipeline Authoring",
+      "path": "CI/CD",
+      "validation_context": {
+        "provider": "azuredevops",
+        "az_devops_org": "${AZ_DEVOPS_ORG_URL}",
+        "az_devops_project": "${AZ_DEVOPS_PROJECT}",
+        "pipeline_name": "<pipeline-name>"
+      },
+      "depends_on": ["CI.VCS"],
+      "ranks": {
+        "1": {
+          "level_name": "Beginner",
+          "capabilities": "Write a simple YAML pipeline and run it manually.",
+          "validation_tasks": ["Create a single-stage pipeline that builds and tests a sample app"],
+          "validation_commands": [
+            "ls -la | grep -E 'azure-pipelines.yml|\\.github/workflows/' || true",
+            "gh workflow run --repo ${GITHUB_REPOSITORY} --ref $(git rev-parse --abbrev-ref HEAD) || true",
+            "az pipelines run --name <pipeline-name> --org $AZ_DEVOPS_ORG_URL --project $AZ_DEVOPS_PROJECT || true"
+          ],
+          "expected_results": [
+            { "type": "file_exists", "path": "pipeline_yaml" },
+            { "type": "manual_check", "message": "pipeline_run_url:provided (capture during pipeline trigger)" }
+          ],
+          "evidence_examples": ["pipeline YAML file", "pipeline run URL"]
+        },
+        "2": {
+          "level_name": "Advanced",
+          "capabilities": "Author multi-stage templates and reuse via templates/includes.",
+          "validation_tasks": ["Refactor pipeline into templates and inject parameters"],
+          "validation_commands": [
+            "# Check for template files (e.g., templates/ or .azure-pipelines/templates)",
+            "grep -R \"templates\" -n || true"
+          ],
+          "expected_results": [
+            { "type": "templates_present" },
+            { "type": "manual_check", "message": "pipeline_runs:stages_executed (verify pipeline run history)" }
+          ],
+          "evidence_examples": ["template repo links", "example runs across stages"]
+        },
+        "3": {
+          "level_name": "Expert",
+          "capabilities": "Create governed, cross-organization pipeline frameworks and promotion gates.",
+          "validation_tasks": ["Publish governance templates and show adoption across projects"],
+          "validation_commands": [
+            "gh api repos/${GITHUB_REPOSITORY:-$(basename -s .git $(git config --get remote.origin.url))}/contents/.github/templates || true",
+            "az artifacts universal show --name governance-templates --organization $AZ_DEVOPS_ORG_URL --project $AZ_DEVOPS_PROJECT || true"
+          ],
+          "expected_results": [
+            { "type": "manual_check", "message": "governance_templates:published (query registry)" },
+            { "type": "manual_check", "message": "adoption_metrics:available (external dashboard)" }
+          ],
+          "evidence_examples": ["governance template registry", "adoption metrics"]
+        }
+      }
+    },
+    "CI.ART": {
+      "title": "Artifact Management",
+      "path": "CI/CD",
+      "depends_on": ["CI.PIPE"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Publish and consume simple packages/feeds.","validation_tasks":["Publish a build artifact to a feed"],"evidence_examples":["feed URL","artifact metadata"]},
+        "2": {"level_name":"Advanced","capabilities":"Integrate artifact feeds with pipelines and retention policies.","validation_tasks":["Add feed to pipeline consume step and set retention"],"evidence_examples":["pipeline config","feed policy screenshot"]},
+        "3": {"level_name":"Expert","capabilities":"Design enterprise artifact governance and cross-org feeds.","validation_tasks":["Define and implement artifact governance plan"],"evidence_examples":["governance docs","audit logs"]}
+      }
+    },
+    "CI.REL": {
+      "title": "Release & Gates",
+      "path": "CI/CD",
+      "depends_on": ["CI.ART"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Use manual approvals and simple release steps.","validation_tasks":["Create a release with a manual approval gate"],"evidence_examples":["release run URL","approval screenshot"]},
+        "2": {"level_name":"Advanced","capabilities":"Automate gates based on tests/metrics and implement basic rollback.","validation_tasks":["Add automated gates (smoke tests) and a rollback step"],"evidence_examples":["gate config","rollback logs"]},
+        "3": {"level_name":"Expert","capabilities":"Implement multi-ring deployments with safe promotion and enterprise controls.","validation_tasks":["Implement a staged multi-ring pipeline with metrics-driven promotion"],"evidence_examples":["deployment dashboard","promotion policy docs"]}
+      }
+    },
+
+    "CLD.AZR": {
+      "title": "Azure Resource Management",
+      "path": "Cloud & Infrastructure",
+      "depends_on": [],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Deploy basic ARM/Bicep templates and understand resource groups.","validation_tasks":["Deploy a simple ARM/Bicep template to a dev subscription"],"evidence_examples":["template file","deployment output"]},
+        "2": {"level_name":"Advanced","capabilities":"Apply RBAC, VNets and managed identities in templates.","validation_tasks":["Create templates with RBAC assignment and VNet resources"],"evidence_examples":["template examples","access control screenshots"]},
+        "3": {"level_name":"Expert","capabilities":"Design landing zones, policies and enterprise subscription topology.","validation_tasks":["Deliver a landing zone proposal with policy enforcement"],"evidence_examples":["landing zone docs","policy assignments"]}
+      }
+    },
+    "CLD.IAC": {
+      "title": "Infrastructure as Code",
+      "path": "Cloud & Infrastructure",
+      "depends_on": ["CLD.AZR"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Author simple IaC using ARM/Terraform/Bicep for single resources.","validation_tasks":["Create and apply a basic Terraform/Bicep module"],"evidence_examples":["module repo","apply logs"]},
+        "2": {"level_name":"Advanced","capabilities":"Structure reusable modules, handle state, and CI integration.","validation_tasks":["Publish a reusable module and consume it from pipeline"],"evidence_examples":["module registry link","pipeline consuming module"]},
+        "3": {"level_name":"Expert","capabilities":"Manage multi-environment deployments, drift detection and multi-cloud patterns.","validation_tasks":["Implement multi-env pipeline with drift detection"],"evidence_examples":["drift report","multi-cloud design"]}
+      }
+    },
+    "CLD.K8S": {
+      "title": "Containers & Kubernetes",
+      "path": "Cloud & Infrastructure",
+      "depends_on": ["CLD.IAC"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Build Docker images and run containers locally.","validation_tasks":["Dockerize a sample app and run it"],"evidence_examples":["Dockerfile","image registry URL"]},
+        "2": {"level_name":"Advanced","capabilities":"Deploy to AKS with Helm/manifest automation and CI integration.","validation_tasks":["Deploy app to AKS using Helm in a pipeline"],"evidence_examples":["Helm chart repo","AKS deployment URL"]},
+        "3": {"level_name":"Expert","capabilities":"Scale AKS with GitOps, monitoring, and enterprise policies.","validation_tasks":["Implement GitOps pipeline for cluster and app config"],"evidence_examples":["GitOps repo","cluster config history"]}
+      }
+    },
+    "CLD.ENT": {
+      "title": "Hybrid Integration",
+      "path": "Cloud & Infrastructure",
+      "depends_on": ["CLD.K8S"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Setup self-hosted agents and basic hybrid connectivity.","validation_tasks":["Register a self-hosted agent and run a pipeline"],"evidence_examples":["agent registration screenshot","pipeline run"]},
+        "2": {"level_name":"Advanced","capabilities":"Configure private endpoints and secure hybrid data paths.","validation_tasks":["Implement a private endpoint and validate connectivity"],"evidence_examples":["network config","connectivity test logs"]},
+        "3": {"level_name":"Expert","capabilities":"Design cross-cloud integration patterns and resilient hybrid CI/CD.","validation_tasks":["Deliver cross-cloud CI/CD blueprint"],"evidence_examples":["blueprint doc","failover test results"]}
+      }
+    },
+
+    "AUT.PS": {
+      "title": "PowerShell / Bash",
+      "path": "Automation & Scripting",
+      "depends_on": [],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Write basic scripts for automation tasks.","validation_tasks":["Create a script to automate a common local task"],"evidence_examples":["script file","run output"]},
+        "2": {"level_name":"Advanced","capabilities":"Author reusable modules and CI scripts.","validation_tasks":["Publish a reusable script/module and use it in pipeline"],"evidence_examples":["module repo","pipeline usage"]},
+        "3": {"level_name":"Expert","capabilities":"Create enterprise-grade automation modules and secure execution patterns.","validation_tasks":["Deliver a secure module with tests and docs"],"evidence_examples":["module package","automated tests"]}
+      }
+    },
+    "AUT.PY": {
+      "title": "Python for DevOps",
+      "path": "Automation & Scripting",
+      "depends_on": ["AUT.PS"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Write scripts using SDKs (Azure SDK/requests) for small tasks.","validation_tasks":["Implement a script that calls an SDK/API to perform a task"],"evidence_examples":["script repo","sample output"]},
+        "2": {"level_name":"Advanced","capabilities":"Build small automation services and library code with tests.","validation_tasks":["Author a small library and CI tests for it"],"evidence_examples":["library repo","CI run logs"]},
+        "3": {"level_name":"Expert","capabilities":"Design frameworks for automation (CLI tools, operator patterns).","validation_tasks":["Deliver an automation framework with docs and adoption examples"],"evidence_examples":["framework repo","usage docs"]}
+      }
+    },
+    "AUT.TSK": {
+      "title": "Custom Tasks",
+      "path": "Automation & Scripting",
+      "depends_on": ["AUT.PY"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Modify existing pipeline tasks or actions.","validation_tasks":["Customize an existing task for a pipeline"],"evidence_examples":["task diff","pipeline run"]},
+        "2": {"level_name":"Advanced","capabilities":"Create custom pipeline tasks/extensions and publish internally.","validation_tasks":["Create and publish a custom task to internal feed"],"evidence_examples":["task package","usage examples"]},
+        "3": {"level_name":"Expert","capabilities":"Publish marketplace-grade extensions and maintain compatibility.","validation_tasks":["Release a marketplace extension and maintain releases"],"evidence_examples":["marketplace listing","release notes"]}
+      }
+    },
+    "AUT.API": {
+      "title": "APIs & CLI",
+      "path": "Automation & Scripting",
+      "depends_on": ["AUT.TSK"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Use CLIs and simple REST calls in scripts.","validation_tasks":["Automate a task using CLI invocation"],"evidence_examples":["script","CLI output"]},
+        "2": {"level_name":"Advanced","capabilities":"Integrate DevOps REST APIs with pipelines and tooling.","validation_tasks":["Build an automation that uses DevOps REST APIs"],"evidence_examples":["automation repo","API call logs"]},
+        "3": {"level_name":"Expert","capabilities":"Create end-to-end workflows combining APIs, events and serverless components.","validation_tasks":["Deliver an event-driven workflow using APIs and serverless"],"evidence_examples":["architecture doc","runbook"]}
+      }
+    },
+
+    "SEC.KV": {
+      "title": "Secrets & Key Vaults",
+      "path": "Security & Compliance",
+      "depends_on": [],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Use pipeline variables and basic secret storage.","validation_tasks":["Store secrets in secure pipeline variables or KV and consume them"],"evidence_examples":["pipeline var config","access logs"]},
+        "2": {"level_name":"Advanced","capabilities":"Integrate Key Vaults and rotate secrets programmatically.","validation_tasks":["Integrate Key Vault into pipelines and demonstrate rotation"],"evidence_examples":["Key Vault policies","rotation script output"]},
+        "3": {"level_name":"Expert","capabilities":"Design enterprise secret management with least privilege and auditability.","validation_tasks":["Deliver a secret management policy and implementation plan"],"evidence_examples":["policy docs","audit evidence"]}
+      }
+    },
+    "SEC.DSO": {
+      "title": "DevSecOps",
+      "path": "Security & Compliance",
+      "depends_on": ["SEC.KV"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Run static scans and respond to findings.","validation_tasks":["Add a static scan stage to a pipeline and triage results"],"evidence_examples":["scan report","triage notes"]},
+        "2": {"level_name":"Advanced","capabilities":"Integrate SAST/SCA into pipelines and automate blocking failures.","validation_tasks":["Enforce SAST/SCA gates in pipeline"],"evidence_examples":["pipeline gate config","scan pass/fail logs"]},
+        "3": {"level_name":"Expert","capabilities":"Operate enterprise DevSecOps program with metrics and feedback loops.","validation_tasks":["Design DevSecOps program with measurable KPIs"],"evidence_examples":["program metrics","roadmap"]}
+      }
+    },
+    "SEC.POL": {
+      "title": "Policy Enforcement",
+      "path": "Security & Compliance",
+      "depends_on": ["SEC.DSO"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Create branch rules and basic approval workflows.","validation_tasks":["Add branch rules and required reviewers"],"evidence_examples":["branch policy screenshot","PR workflow example"]},
+        "2": {"level_name":"Advanced","capabilities":"Automate policy checks and enforce them in pipelines.","validation_tasks":["Add automated policy checks in CI and fail PRs on policy violation"],"evidence_examples":["policy check logs","pipeline failures"]},
+        "3": {"level_name":"Expert","capabilities":"Implement enterprise policy automation and remediation playbooks.","validation_tasks":["Deliver automated remediation for common policy violations"],"evidence_examples":["remediation scripts","reduction metrics"]}
+      }
+    },
+    "SEC.CMP": {
+      "title": "Compliance Deploys",
+      "path": "Security & Compliance",
+      "depends_on": ["SEC.POL"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Understand compliance needs and produce basic evidence artifacts.","validation_tasks":["Map a small deployment to compliance checklist"],"evidence_examples":["checklist","artifact snapshots"]},
+        "2": {"level_name":"Advanced","capabilities":"Align pipelines to compliance controls and capture evidence automatically.","validation_tasks":["Automate collection of compliance evidence during deployment"],"evidence_examples":["evidence bundle","pipeline steps"]},
+        "3": {"level_name":"Expert","capabilities":"Operate continuous compliance with automated remediation and audit readiness.","validation_tasks":["Implement continuous compliance automation and provide audit report"],"evidence_examples":["audit report","remediation logs"]}
+      }
+    },
+
+    "MON.DBG": {
+      "title": "Troubleshooting",
+      "path": "Monitoring & Optimization",
+      "depends_on": [],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Use logs and basic debuggers to identify failures.","validation_tasks":["Triaging an incident using logs and reproduce steps"],"evidence_examples":["incident notes","logs"]},
+        "2": {"level_name":"Advanced","capabilities":"Instrument services and perform root cause analysis." ,"validation_tasks":["Perform RCA for a past incident with timeline and fixes"],"evidence_examples":["RCA doc","fix PRs"]},
+        "3": {"level_name":"Expert","capabilities":"Establish RCA frameworks and postmortem automation.","validation_tasks":["Create a postmortem process and automation for common faults"],"evidence_examples":["process docs","automation scripts"]}
+      }
+    },
+    "MON.OBS": {
+      "title": "Observability",
+      "path": "Monitoring & Optimization",
+      "depends_on": ["MON.DBG"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Setup basic monitors and alerts.","validation_tasks":["Configure a basic alert for a sample service"],"evidence_examples":["alert config","fires logs"]},
+        "2": {"level_name":"Advanced","capabilities":"Instrument app telemetry and create dashboards.","validation_tasks":["Add App Insights instrumentation and dashboard"],"evidence_examples":["dashboard URL","telemetry samples"]},
+        "3": {"level_name":"Expert","capabilities":"Design enterprise observability with SLOs and alerting strategy.","validation_tasks":["Define SLOs and implement an alerting strategy"],"evidence_examples":["SLO docs","alerting rules"]}
+      }
+    },
+    "MON.PRF": {
+      "title": "Performance",
+      "path": "Monitoring & Optimization",
+      "depends_on": ["MON.OBS"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Apply basic performance techniques like caching.","validation_tasks":["Add caching to an app and measure improvement"],"evidence_examples":["before/after metrics","config diff"]},
+        "2": {"level_name":"Advanced","capabilities":"Profile apps and optimize container reuse and startup.","validation_tasks":["Profile and optimize a containerized app"],"evidence_examples":["profiling output","PR with changes"]},
+        "3": {"level_name":"Expert","capabilities":"Introduce enterprise performance frameworks and capacity planning.","validation_tasks":["Deliver capacity plan and performance playbook"],"evidence_examples":["plan doc","load test results"]}
+      }
+    },
+    "MON.CST": {
+      "title": "Cost Optimization",
+      "path": "Monitoring & Optimization",
+      "depends_on": ["MON.PRF"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Be aware of costing and identify obvious savings.","validation_tasks":["Produce a small cost-saving change and estimate savings"],"evidence_examples":["cost before/after","change PR"]},
+        "2": {"level_name":"Advanced","capabilities":"Optimize agent usage, spot instances and right-sizing.","validation_tasks":["Implement autoscaling and agent pooling to save costs"],"evidence_examples":["autoscale config","cost metrics"]},
+        "3": {"level_name":"Expert","capabilities":"Drive governance around cost allocation and show sustained reductions.","validation_tasks":["Deliver cost governance plan and show tracked savings"],"evidence_examples":["governance docs","savings dashboard"]}
+      }
+    },
+
+    "LDR.AGL": {
+      "title": "Agile & Collaboration",
+      "path": "Leadership & Advanced",
+      "depends_on": [],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Participate in Agile rituals and use boards.","validation_tasks":["Create and manage work items in Azure Boards"],"evidence_examples":["board snapshot","work item links"]},
+        "2": {"level_name":"Advanced","capabilities":"Coach teams to use Azure Boards and workflows effectively.","validation_tasks":["Run a retrospective and implement 2 improvements"],"evidence_examples":["retrospective notes","improvement story links"]},
+        "3": {"level_name":"Expert","capabilities":"Scale agile practices and measure flow across teams.","validation_tasks":["Design cross-team cadences and metrics"],"evidence_examples":["metric dashboards","cadence docs"]}
+      }
+    },
+    "LDR.MEN": {
+      "title": "Mentorship",
+      "path": "Leadership & Advanced",
+      "depends_on": ["LDR.AGL"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Share scripts and help peers with small tasks.","validation_tasks":["Help a peer by reviewing a PR and sharing a script"],"evidence_examples":["PR review","shared snippet"]},
+        "2": {"level_name":"Advanced","capabilities":"Run regular mentoring and knowledge transfer sessions.","validation_tasks":["Run a lunch-and-learn and collect feedback"],"evidence_examples":["session notes","feedback"]},
+        "3": {"level_name":"Expert","capabilities":"Build formal training frameworks and measure competency growth.","validation_tasks":["Deliver a training program with assessments"],"evidence_examples":["course materials","assessment results"]}
+      }
+    },
+    "LDR.ENT": {
+      "title": "Enterprise Patterns",
+      "path": "Leadership & Advanced",
+      "depends_on": ["LDR.MEN"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Understand small-org CI/CD patterns.","validation_tasks":["Document an existing small-org CI/CD flow"],"evidence_examples":["diagram","notes"]},
+        "2": {"level_name":"Advanced","capabilities":"Design multi-project CI/CD solutions and cross-team pipelines.","validation_tasks":["Design a multi-project CI/CD plan"],"evidence_examples":["design doc","prototype pipeline"]},
+        "3": {"level_name":"Expert","capabilities":"Define governance, scale and compliance for enterprise CI/CD.","validation_tasks":["Publish enterprise CI/CD standards and run adoption workshops"],"evidence_examples":["standards doc","workshop artifacts"]}
+      }
+    },
+    "LDR.AI": {
+      "title": "AI-Enhanced DevOps",
+      "path": "Leadership & Advanced",
+      "depends_on": ["LDR.ENT"],
+      "ranks": {
+        "1": {"level_name":"Beginner","capabilities":"Use Copilot-style tools for small tasks.","validation_tasks":["Use Copilot to generate pipeline snippets and review output"],"evidence_examples":["snippet","review notes"]},
+        "2": {"level_name":"Advanced","capabilities":"Integrate AI into pipelines and developer workflows.","validation_tasks":["Add AI-assist checks to PR workflow"],"evidence_examples":["integration config","usage logs"]},
+        "3": {"level_name":"Expert","capabilities":"Drive AI-driven transformation in CI/CD and operations.","validation_tasks":["Prototype an AI-driven automation that reduces toil"],"evidence_examples":["prototype repo","metrics"]}
+      }
+    }
+  }
+}
